@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>타임라인 빌더</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&family=Do+Hyeon&family=Gaegu:wght@700&family=Noto+Serif+KR:wght@700;900&family=Noto+Sans+KR:wght@400;500;600;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --band: #E63946;
+    --ui: #E63946;
+    --navy: #1C1420;
+    --gray: #6B5A60;
+    --line: rgba(28,20,32,0.10);
+    --displayFont: 'Black Han Sans', sans-serif;
+    --displayWeight: 400;
+    --paper: rgba(255,255,255,0.72);
+    --bg: #FBEEEF;
+    --danger: #C0392B;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0;
+    color: var(--navy);
+    font-family: 'Noto Sans KR', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background:
+      radial-gradient(circle at 8% 8%, rgba(255,255,255,0.9) 0, rgba(255,255,255,0) 40%),
+      radial-gradient(circle at 90% 6%, rgba(255,183,192,0.55) 0, rgba(255,183,192,0) 45%),
+      radial-gradient(circle at 85% 60%, rgba(230,57,70,0.16) 0, rgba(230,57,70,0) 45%),
+      radial-gradient(circle at 10% 75%, rgba(255,138,101,0.20) 0, rgba(255,138,101,0) 45%),
+      linear-gradient(160deg, #FFF1EE 0%, #FBE4E6 45%, #F4D9DE 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+  .app{ max-width: 1680px; margin: 0 auto; padding: 40px 32px 90px; }
+  .top-bar{ display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:24px; flex-wrap:wrap; }
+  .brand{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .brand-mark{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:30px; height:30px; border-radius:9px; flex-shrink:0;
+    background: linear-gradient(135deg, #FF7A8A, var(--ui) 60%, #A4133C);
+    color:#fff; font-family:'Black Han Sans', sans-serif; font-size:15px;
+    box-shadow: 0 6px 14px rgba(230,57,70,0.35);
+  }
+  .top-bar h1{
+    font-family:'Black Han Sans', sans-serif; font-weight:400; font-size:26px; letter-spacing:-0.01em; margin:0;
+    background: linear-gradient(90deg, #A4133C, var(--ui) 55%, #FF7A8A);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .top-bar .brand-sub{
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.22em; color:var(--gray); opacity:0.8;
+  }
+  .top-bar p{ margin:4px 0 0; color:var(--gray); font-size:12.5px; }
+  .scale-readout{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--gray); text-align:right; }
+  .scale-readout b{ color:var(--navy); font-weight:600; }
+
+  .grid{ display:grid; grid-template-columns: 620px 1fr; gap:20px; align-items:start; }
+  .grid > div{ min-width:0; }
+  .sidebar-cols{ display:grid; grid-template-columns: 1fr 1fr; gap:20px; align-items:start; }
+  .sidebar-cols > div{ min-width:0; }
+  @media (max-width: 1300px){
+    .grid{ grid-template-columns: 300px 1fr; }
+    .sidebar-cols{ grid-template-columns: 1fr; }
+  }
+  @media (max-width: 900px){ .grid{ grid-template-columns: 1fr; } }
+
+  .panel{
+    background:var(--paper); border:1px solid rgba(255,255,255,0.65); border-radius:20px; padding:20px;
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 8px 28px rgba(164,19,60,0.08), inset 0 1px 0 rgba(255,255,255,0.6);
+  }
+  .panel + .panel{ margin-top:14px; }
+  .panel-title{ font-family:'Noto Sans KR', sans-serif; font-weight:700; font-size:12px; letter-spacing:0.02em; color:var(--gray); margin:0 0 14px; padding-bottom:10px; border-bottom:1px solid var(--line); }
+
+  label{ display:block; font-size:11.5px; color:var(--gray); margin-bottom:5px; margin-top:14px; font-family:'Noto Sans KR', sans-serif; font-weight:600; }
+  label:first-of-type{ margin-top:0; }
+  .hint{ font-size:10.5px; color:#9AA3AB; margin-top:4px; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  input[type=text], input[type=number], textarea{
+    width:100%; background:rgba(255,255,255,0.65); border:1px solid rgba(28,20,32,0.10); color:var(--navy);
+    padding:9px 11px; border-radius:12px; font-size:13px; font-family:'Noto Sans KR', sans-serif;
+  }
+  input[type=color]{
+    width:30px; height:30px; padding:0; border:2px solid rgba(255,255,255,0.8); border-radius:50%;
+    cursor:pointer; background:none; box-shadow:0 4px 10px rgba(164,19,60,0.18);
+  }
+  input[type=color]::-webkit-color-swatch-wrapper{ padding:0; border-radius:50%; }
+  input[type=color]::-webkit-color-swatch{ border:none; border-radius:50%; }
+  input[type=color]::-moz-color-swatch{ border:none; border-radius:50%; }
+  select{
+    width:100%; background:rgba(255,255,255,0.65); border:1px solid rgba(28,20,32,0.10); color:var(--navy);
+    padding:9px 11px; border-radius:12px; font-size:13px; font-family:'Noto Sans KR', sans-serif;
+  }
+  select:focus{ outline:none; border-color:var(--ui); }
+  input:focus, textarea:focus{ outline:none; border-color:var(--ui); }
+  textarea{ resize:vertical; min-height:50px; }
+
+  .checkline{ display:flex; align-items:center; gap:8px; margin-top:14px; font-size:12.5px; color:var(--navy); }
+  .checkline input{ width:auto; }
+
+  .filebtn{ display:block; width:100%; text-align:center; border:1.5px dashed rgba(230,57,70,0.4); border-radius:12px; padding:10px; font-size:12px; color:var(--gray); cursor:pointer; background:rgba(255,255,255,0.5); }
+  .filebtn:hover{ border-color:var(--ui); color:var(--ui); }
+
+  .thumbrow{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .thumb{ position:relative; width:44px; height:44px; border-radius:10px; overflow:hidden; border:1px solid var(--line); }
+  .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb .x{ position:absolute; top:0; right:0; width:16px; height:16px; background:rgba(0,0,0,0.55); color:#fff; font-size:11px; line-height:16px; text-align:center; cursor:pointer; }
+  .preview-single{ margin-top:8px; }
+  .preview-single .thumb{ width:64px; height:64px; }
+
+  button{
+    font-family:'Noto Sans KR', sans-serif; font-weight:600; cursor:pointer; border-radius:999px; border:1px solid rgba(28,20,32,0.12);
+    background:rgba(255,255,255,0.6); color:var(--navy); padding:9px 16px; font-size:12px;
+  }
+  button:hover{ border-color:var(--ui); color:var(--ui); }
+  .btn-primary{
+    background: linear-gradient(135deg, #FF7A8A, var(--ui) 55%, #A4133C);
+    color:#fff; border-color:transparent; width:100%; margin-top:16px; font-weight:600;
+    box-shadow: 0 8px 20px rgba(230,57,70,0.35);
+  }
+  .btn-primary:hover{ opacity:0.92; color:#fff; }
+  .btn-ghost{ background:transparent; }
+  .btn-active{ background:var(--navy); color:#fff; border-color:var(--navy); }
+  .btn-active:hover{ color:#fff; border-color:var(--navy); }
+
+  .event-list{ margin-top:20px; display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto; }
+  .event-row{ display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.55); border:1px solid var(--line); border-radius:12px; padding:6px 8px; font-size:12.5px; cursor:pointer; }
+  .event-row:hover{ border-color:var(--ui); }
+  .event-row.editing{ border-color:var(--ui); background:rgba(230,57,70,0.08); }
+  .event-row .thumb{ width:28px; height:28px; flex-shrink:0; }
+  .event-row .dot{ width:8px; height:8px; border-radius:50%; background:var(--ui); flex-shrink:0; }
+  .event-row .meta{ flex:1; min-width:0; }
+  .event-row .meta .d{ font-family:'IBM Plex Mono', monospace; color:#9AA3AB; font-size:10px; }
+  .event-row .meta .t{ color:var(--navy); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .event-row .dup{ background:none; border:none; color:#B7BEC4; font-size:13px; padding:0 2px; }
+  .event-row .dup:hover{ color:var(--ui); }
+  .event-row .del{ background:none; border:none; color:#B7BEC4; font-size:15px; padding:0 2px; }
+  .event-row .del:hover{ color:var(--danger); }
+  .empty-hint{ color:#9AA3AB; font-size:12px; text-align:center; padding:20px 8px; border:1px dashed var(--line); border-radius:12px; margin-top:20px; }
+
+  .canvas-toolbar{ display:flex; justify-content:space-between; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .canvas-toolbar .grp{ display:flex; gap:8px; }
+  #btnModeBand, #btnModeLine, #btnModeVertical{ font-family:'Noto Sans KR', sans-serif; font-weight:600; }
+
+  #captureArea{ background:#FFFFFF; border-radius:20px; overflow:hidden; box-shadow: 0 10px 32px rgba(164,19,60,0.10); min-width:0; isolation:isolate; transform:translateZ(0); }
+
+  .intro{ padding:56px 44px 8px; }
+  .titleline{ font-family:var(--displayFont); font-weight:var(--displayWeight); line-height:1.15; color:var(--navy); overflow-wrap:break-word; word-break:break-word; }
+  .titleline.accent{ color:var(--band); }
+
+  .scroller{ overflow-x:auto; }
+  .track-outer{ position:relative; padding: 210px 44px 190px; }
+
+  .band{ position:absolute; left:0; right:0; background:var(--band); overflow:hidden; }
+  .band-collage{ position:absolute; inset:0; }
+  .band-collage img{ position:absolute; top:0; display:block; }
+  .band-overlay{ position:absolute; inset:0; background:var(--band); opacity:0.74; mix-blend-mode:multiply; display:none; }
+
+  .node{ position:absolute; top:50%; width:13px; height:13px; border-radius:50%; background:var(--band); border:2px solid #fff; transform:translate(-50%,-50%); z-index:3; display:none; }
+
+  .num{
+    position:absolute; top:50%; transform:translate(-50%,-50%);
+    font-family:var(--displayFont); font-weight:var(--displayWeight); white-space:nowrap; z-index:2;
+    color:#FFFFFF; font-size:46px; text-shadow:0 2px 10px rgba(0,0,0,0.28);
+  }
+
+  .stem{ position:absolute; width:1px; background:#C7CDD2; z-index:1; }
+
+  .card{ position:absolute; text-align:left; display:flex; align-items:flex-start; gap:10px; }
+  .card.no-image{ display:block; }
+  .card .thumb-img{ object-fit:cover; border-radius:4px; display:block; flex:0 0 auto; }
+  .card .textwrap{ flex:1; min-width:0; }
+  .card .title{ font-family:var(--displayFont); font-weight:var(--displayWeight); font-size:14.5px; color:var(--band); line-height:1.3; }
+  .card .desc{ font-size:11.5px; color:var(--gray); line-height:1.55; margin-top:5px; }
+
+  /* ---- LINE MODE overrides ---- */
+  #captureArea.mode-line .band-collage,
+  #captureArea.mode-line .band-overlay{ display:none; }
+  #captureArea.mode-line .node{ display:block; }
+  #captureArea.mode-line .num{
+    color: var(--band); text-shadow:none;
+  }
+  #captureArea.mode-line .card{
+    border:1.5px solid var(--band); background:#fff; padding:9px 11px; border-radius:2px;
+  }
+
+  /* ---- VERTICAL MODE overrides ---- */
+  /* reuses the .band element itself as the centerline, just laid out
+     top-to-bottom instead of left-to-right, and reuses the same bordered
+     card look as line mode since it reads well stacked too */
+  #captureArea.mode-vertical .scroller{ overflow-x:hidden; }
+  #captureArea.mode-vertical .band{
+    left:50%; right:auto; top:0; bottom:0; width:3px; height:auto !important;
+    transform:translateX(-50%);
+  }
+  #captureArea.mode-vertical .band-collage,
+  #captureArea.mode-vertical .band-overlay{ display:none; }
+  #captureArea.mode-vertical .node{ display:block; }
+  #captureArea.mode-vertical .card{
+    border:1.5px solid var(--band); background:#fff; padding:9px 11px; border-radius:2px;
+  }
+  .card .v-year{
+    font-family:var(--displayFont); font-weight:var(--displayWeight); font-size:11px;
+    color:#9AA1A8; letter-spacing:0.02em; margin-bottom:3px;
+  }
+
+  footer{ margin-top:36px; text-align:center; font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:#B7BEC4; letter-spacing:0.04em; }
+
+  .preview-stage{
+    margin-top:8px; background:#fff; border:1px solid var(--line); border-radius:14px;
+    padding:22px 16px; display:flex; align-items:center; justify-content:center;
+    min-height:90px; overflow-x:auto;
+  }
+  .prev-card{ display:flex; align-items:flex-start; gap:10px; text-align:left; flex-shrink:0; }
+  .prev-card.no-image{ display:block; }
+  .prev-card.line-style{ border:1.5px solid var(--band); background:#fff; padding:9px 11px; border-radius:2px; }
+  .prev-thumb{ object-fit:cover; border-radius:4px; display:block; flex:0 0 auto; }
+  .prev-textwrap{ min-width:0; flex:0 0 auto; }
+  .prev-title{ font-family:var(--displayFont); font-weight:var(--displayWeight); color:var(--band); line-height:1.3; overflow-wrap:break-word; }
+  .prev-desc{ color:var(--gray); line-height:1.55; margin-top:5px; overflow-wrap:break-word; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="top-bar">
+    <div>
+      <div class="brand">
+        <span class="brand-mark">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="9.5" stroke="white" stroke-width="1.8"/>
+            <path d="M12 7V12L15.5 14" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <h1>TIMELINER</h1>
+        <span class="brand-sub">TIMELINE STUDIO</span>
+      </div>
+    </div>
+    <div class="scale-readout" id="scaleReadout"></div>
+  </div>
+
+  <div class="grid">
+    <!-- LEFT -->
+    <div class="sidebar-cols">
+      <div>
+        <div class="panel">
+          <p class="panel-title">제목 (2줄)</p>
+          <label>1줄</label>
+          <input type="text" id="inpTitle1" value="타임라인" maxlength="300">
+          <label>2줄 (강조색)</label>
+          <input type="text" id="inpTitle2" value="연대기" maxlength="300">
+        </div>
+
+        <div class="panel">
+          <p class="panel-title">디자인 설정</p>
+          <div class="row2">
+            <div>
+              <label>포인트 색상</label>
+              <input type="color" id="inpBandColor" value="#E63946">
+            </div>
+            <div>
+              <label>연도 단위</label>
+              <input type="text" id="inpSuffix" value="" placeholder="예: 년">
+            </div>
+          </div>
+          <label>제목·숫자 폰트</label>
+          <select id="inpFont">
+            <option value="blackhan">블랙 한 산스</option>
+            <option value="notosans">노토 산스</option>
+            <option value="notoserif">노토 세리프</option>
+            <option value="jua">주아</option>
+            <option value="dohyeon">도현</option>
+            <option value="gaegu">개구</option>
+          </select>
+          <div class="checkline">
+            <input type="checkbox" id="chkMono" checked>
+            <label style="margin:0; font-family:'Noto Sans KR';">카드 이미지 흑백 처리</label>
+          </div>
+          <label>띠 안에 넣을 배경 이미지 (여러 장, 띠 스타일에서만 보임)</label>
+          <label class="filebtn" for="inpBandImages">+ 이미지 선택</label>
+          <input type="file" id="inpBandImages" accept="image/*" multiple style="display:none;">
+          <div class="thumbrow" id="bandThumbs"></div>
+          <button class="btn-ghost" id="btnClearBandImgs" style="width:100%; margin-top:8px;">배경 이미지 지우기</button>
+          <label>배경 이미지 크기 <span id="bandImgSizeVal" style="color:#9AA3AB;">190px</span></label>
+          <input type="range" id="inpBandImgSize" min="100" max="360" value="190">
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <p class="panel-title" id="eventFormTitle">이벤트 추가</p>
+          <label>연도 (숫자)</label>
+          <input type="number" id="inpYear" step="any" placeholder="예: 1968, 2024">
+          <label>제목</label>
+          <input type="text" id="inpTitle" placeholder="예: 왕국 건국" maxlength="300">
+          <label>설명 (선택)</label>
+          <textarea id="inpDesc" placeholder="짧은 설명" maxlength="300"></textarea>
+          <label>사진 (선택)</label>
+          <label class="filebtn" for="inpEventImage">+ 사진 선택</label>
+          <input type="file" id="inpEventImage" accept="image/*" style="display:none;">
+          <div class="preview-single thumbrow" id="eventImgPreview"></div>
+          <label>사진 크기 <span id="imgSizeVal" style="color:#9AA3AB;">100px</span></label>
+          <input type="range" id="inpImgSize" min="50" max="220" value="100">
+
+          <label>텍스트 크기 <span id="textSizeVal" style="color:#9AA3AB;">17px</span></label>
+          <input type="range" id="inpTextSize" min="10" max="28" value="17">
+          <label>텍스트 박스 크기 <span id="boxSizeVal" style="color:#9AA3AB;">170px</span></label>
+          <input type="range" id="inpBoxSize" min="80" max="320" value="170">
+          <div class="hint">텍스트 크기·박스 크기는 띠·라인 스타일 모두에 적용돼요</div>
+
+          <label>미리보기</label>
+          <div class="preview-stage" id="previewStage">
+            <div class="prev-card no-image" id="previewCard">
+              <img class="prev-thumb" id="previewThumb" style="display:none;">
+              <div class="prev-textwrap">
+                <div class="prev-title" id="previewTitle">제목이 여기 표시돼요</div>
+                <div class="prev-desc" id="previewDesc" style="display:none;"></div>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-primary" id="btnAdd">+ 타임라인에 추가</button>
+          <button class="btn-ghost" id="btnCancelEdit" style="width:100%; margin-top:8px; display:none;">취소</button>
+
+          <div id="eventListWrap">
+            <div class="empty-hint" id="emptyHint">아직 추가된 이벤트가 없습니다</div>
+            <div class="event-list" id="eventList"></div>
+          </div>
+          <div class="hint" style="margin-top:8px;">목록의 이벤트를 클릭하면 수정할 수 있어요.</div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div>
+      <div class="canvas-toolbar">
+        <div class="grp">
+          <button id="btnModeBand" class="btn-active">띠</button>
+          <button id="btnModeLine">라인</button>
+          <button id="btnModeVertical">세로</button>
+        </div>
+        <div class="grp">
+          <button class="btn-ghost" id="btnResetAll">전체 초기화</button>
+          <button id="btnSave">이미지로 저장</button>
+        </div>
+      </div>
+
+      <div id="captureArea" class="mono mode-band">
+        <div class="intro">
+          <div class="titleline" id="capTitle1">타임라인</div>
+          <div class="titleline accent" id="capTitle2">연대기</div>
+        </div>
+        <div class="scroller" id="scrollerEl">
+          <div class="track-outer" id="trackOuter">
+            <div class="band" id="band">
+              <div class="band-collage" id="bandCollage"></div>
+              <div class="band-overlay" id="bandOverlay"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>&mdash; TIMELINE BUILDER · 새로고침하면 데이터가 초기화되니 이미지로 미리 저장해두세요 &mdash;</footer>
+</div>
+
+<script>
+(function(){
+  // load html2canvas dynamically, trying a couple of CDNs — some
+  // networks/previews block one CDN but not another, so a single
+  // static <script src> tag can silently fail with no good error message
+  const H2C_SOURCES = [
+    'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+    'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+    'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js'
+  ];
+  let h2cPromise = null;
+  function loadHtml2Canvas(){
+    if(window.html2canvas) return Promise.resolve();
+    if(h2cPromise) return h2cPromise;
+    h2cPromise = H2C_SOURCES.reduce((chain, src) => chain.catch(() => new Promise((resolve, reject) => {
+      if(window.html2canvas){ resolve(); return; }
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => window.html2canvas ? resolve() : reject(new Error('loaded but html2canvas missing'));
+      s.onerror = () => reject(new Error('failed to load ' + src));
+      document.head.appendChild(s);
+    })), Promise.reject());
+    return h2cPromise;
+  }
+  let events = [];
+  let bandImages = [];
+  let bandImgSize = 190;
+  let maxTrackWidth = 0; // high-water mark: the track only ever gets longer, deleting events never shrinks it back
+  let pendingEventImage = null;
+  let pendingImgSize = 100;
+  let pendingTextSize = 17; // per-event override for line-mode title/desc font size
+  let pendingBoxSize = 170; // per-event override for line-mode text column width
+
+  // shared card-layout constants — used by both renderTimeline() and the
+  // mini form preview, so the two can never drift out of sync with each
+  // other again
+  const DENSITY_SCALE = 1.15;
+  const TEXT_W_BASE = 148 * DENSITY_SCALE; // default width reserved for the text column next to an image
+  const BOX_PAD = 190 * DENSITY_SCALE - TEXT_W_BASE; // extra width a no-image card gets beyond its text column
+  let editingId = null;
+  let editingOriginalImgSize = null; // so a live size-preview during edit can be reverted on cancel
+  let editingOriginalTextSize = null;
+  let editingOriginalBoxSize = null;
+  let mode = 'band'; // 'band' | 'line' | 'vertical'
+
+  const el = id => document.getElementById(id);
+  const inpTitle1=el('inpTitle1'), inpTitle2=el('inpTitle2');
+  const inpBandColor=el('inpBandColor'), inpSuffix=el('inpSuffix'), chkMono=el('chkMono');
+  const inpFont=el('inpFont');
+  const inpBandImages=el('inpBandImages'), bandThumbs=el('bandThumbs'), btnClearBandImgs=el('btnClearBandImgs');
+  const inpBandImgSize=el('inpBandImgSize'), bandImgSizeVal=el('bandImgSizeVal');
+  const inpYear=el('inpYear'), inpTitle=el('inpTitle'), inpDesc=el('inpDesc');
+  function autoGrow(el){ el.style.height='auto'; el.style.height = Math.min(240, el.scrollHeight) + 'px'; }
+  inpDesc.addEventListener('input', ()=> autoGrow(inpDesc));
+  const inpEventImage=el('inpEventImage'), eventImgPreview=el('eventImgPreview');
+  const inpImgSize=el('inpImgSize'), imgSizeVal=el('imgSizeVal');
+  const inpTextSize=el('inpTextSize'), textSizeVal=el('textSizeVal');
+  const inpBoxSize=el('inpBoxSize'), boxSizeVal=el('boxSizeVal');
+  const previewCard=el('previewCard'), previewThumb=el('previewThumb'), previewTitle=el('previewTitle'), previewDesc=el('previewDesc');
+  const btnAdd=el('btnAdd'), btnResetAll=el('btnResetAll'), btnSave=el('btnSave');
+  const btnCancelEdit=el('btnCancelEdit'), eventFormTitle=el('eventFormTitle');
+  const btnModeBand=el('btnModeBand'), btnModeLine=el('btnModeLine'), btnModeVertical=el('btnModeVertical');
+  const eventList=el('eventList'), emptyHint=el('emptyHint');
+  const trackOuter=el('trackOuter'), band=el('band'), bandCollage=el('bandCollage'), bandOverlay=el('bandOverlay'), scaleReadout=el('scaleReadout');
+  const scrollerEl=el('scrollerEl');
+  const capTitle1=el('capTitle1'), capTitle2=el('capTitle2');
+  const captureArea = el('captureArea');
+
+  const FONT_MAP = {
+    blackhan:  { family: "'Black Han Sans', sans-serif", weight: 400 },
+    notosans:  { family: "'Noto Sans KR', sans-serif",   weight: 900 },
+    notoserif: { family: "'Noto Serif KR', serif",       weight: 800 },
+    jua:       { family: "'Jua', sans-serif",            weight: 400 },
+    dohyeon:   { family: "'Do Hyeon', sans-serif",        weight: 400 },
+    gaegu:     { family: "'Gaegu', sans-serif",          weight: 700 },
+  };
+
+  // ---- persistence (survives page refresh) ----
+  const STORAGE_KEY = 'timeliner_state_v1';
+  function saveState(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        title1: inpTitle1.value, title2: inpTitle2.value,
+        bandColor: inpBandColor.value, suffix: inpSuffix.value,
+        font: inpFont.value, mono: chkMono.checked,
+        bandImgSize: bandImgSize, bandImages: bandImages,
+        mode: mode, events: events, maxTrackWidth: maxTrackWidth
+      }));
+    }catch(e){ /* storage unavailable (e.g. sandboxed preview) — state just won't persist */ }
+  }
+  function loadState(){
+    let raw;
+    try{ raw = localStorage.getItem(STORAGE_KEY); }catch(e){ return false; }
+    if(!raw) return false;
+    try{
+      const s = JSON.parse(raw);
+      inpTitle1.value = s.title1 ?? inpTitle1.value;
+      inpTitle2.value = s.title2 ?? inpTitle2.value;
+      inpBandColor.value = s.bandColor ?? inpBandColor.value;
+      document.documentElement.style.setProperty('--band', inpBandColor.value);
+      inpSuffix.value = s.suffix ?? '';
+      inpFont.value = s.font ?? 'blackhan';
+      const f = FONT_MAP[inpFont.value] || FONT_MAP.blackhan;
+      document.documentElement.style.setProperty('--displayFont', f.family);
+      document.documentElement.style.setProperty('--displayWeight', f.weight);
+      chkMono.checked = s.mono !== false;
+      captureArea.classList.toggle('mono', chkMono.checked);
+      bandImgSize = s.bandImgSize || 190;
+      inpBandImgSize.value = bandImgSize;
+      bandImgSizeVal.textContent = bandImgSize+'px';
+      bandImages = Array.isArray(s.bandImages) ? s.bandImages : [];
+      renderBandThumbs();
+      mode = (s.mode === 'line' || s.mode === 'vertical') ? s.mode : 'band';
+      captureArea.classList.toggle('mode-band', mode==='band');
+      captureArea.classList.toggle('mode-line', mode==='line');
+      captureArea.classList.toggle('mode-vertical', mode==='vertical');
+      btnModeBand.classList.toggle('btn-active', mode==='band');
+      btnModeLine.classList.toggle('btn-active', mode==='line');
+      btnModeVertical.classList.toggle('btn-active', mode==='vertical');
+      events = Array.isArray(s.events) ? s.events : [];
+      maxTrackWidth = typeof s.maxTrackWidth === 'number' ? s.maxTrackWidth : 0;
+      return true;
+    }catch(e){ return false; }
+  }
+
+  inpFont.addEventListener('change', ()=>{
+    const f = FONT_MAP[inpFont.value] || FONT_MAP.blackhan;
+    document.documentElement.style.setProperty('--displayFont', f.family);
+    document.documentElement.style.setProperty('--displayWeight', f.weight);
+    saveState();
+  });
+
+  function uid(){ return Math.random().toString(36).slice(2,9); }
+  function suffix(){ return inpSuffix.value || ''; }
+  function fmtYear(y){ let n = Math.round(y*100)/100; return String(n) + suffix(); }
+  function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+  function readFile(file, cb){ const r=new FileReader(); r.onload=()=>cb(r.result); r.readAsDataURL(file); }
+
+  // html2canvas doesn't reliably render CSS `filter`, `mix-blend-mode`, or
+  // even `object-fit: cover` on <img> elements, so for the saved PNG to
+  // actually match what's shown on screen we bake everything — grayscale,
+  // color tint, AND the cover-crop itself — into real pixels at the exact
+  // target size. Nothing about how the image looks is left to live CSS.
+  function processImgSrc(src, dw, dh, processFn){
+    return new Promise((resolve, reject)=>{
+      const img = new Image();
+      if(!src.startsWith('data:') && !src.startsWith('blob:')) img.crossOrigin = 'anonymous';
+      img.onload = ()=>{
+        try{
+          const canvas = document.createElement('canvas');
+          canvas.width = dw; canvas.height = dh;
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high'; // avoid blocky/jagged edges when shrinking large photos down
+          const nw = img.naturalWidth || dw, nh = img.naturalHeight || dh;
+          const scale = Math.max(dw/nw, dh/nh);
+          const sw = dw/scale, sh = dh/scale;
+          const sx = (nw-sw)/2, sy = (nh-sh)/2;
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh); // pre-baked "cover" crop
+          processFn(ctx, canvas);
+          resolve(canvas.toDataURL('image/png'));
+        }catch(e){ reject(e); }
+      };
+      img.onerror = (e)=> reject(e);
+      img.src = src;
+    });
+  }
+  // external URL: fetching it as a blob first and reading the blob
+  // succeeds in more cases than loading straight into an <img> with
+  // crossOrigin, since once the fetch itself succeeds the resulting
+  // blob: URL is no longer cross-origin for canvas purposes
+  function processImage(url, dw, dh, processFn){
+    if(url.startsWith('data:')){
+      return processImgSrc(url, dw, dh, processFn);
+    }
+    return fetch(url, {mode:'cors'})
+      .then(r=>{ if(!r.ok) throw new Error('fetch failed'); return r.blob(); })
+      .then(blob=>{
+        const blobUrl = URL.createObjectURL(blob);
+        return processImgSrc(blobUrl, dw, dh, processFn).finally(()=> URL.revokeObjectURL(blobUrl));
+      })
+      .catch(()=> processImgSrc(url, dw, dh, processFn));
+  }
+  function grayscaleFn(ctx, canvas){
+    const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = id.data;
+    for(let i=0;i<d.length;i+=4){
+      const g = d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114;
+      d[i]=d[i+1]=d[i+2]=g;
+    }
+    ctx.putImageData(id, 0, 0);
+  }
+  function toGrayscaleDataURL(url, dw, dh){
+    return processImage(url, dw, dh, grayscaleFn).catch(()=>url);
+  }
+  // reproduce the old duotone look (grayscale photo + band color multiplied
+  // on top at ~74% strength) — but as real pixels, so html2canvas captures
+  // it exactly as seen on screen
+  function toDuotoneDataURL(url, hexColor, dw, dh){
+    return processImage(url, dw, dh, (ctx, canvas)=>{
+      grayscaleFn(ctx, canvas);
+      ctx.globalAlpha = 0.74;
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = hexColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+    }).catch(()=>url);
+  }
+  // duotone tiles are cached per (image, color, size). Dragging the size/color
+  // slider fires many intermediate values, none of which hit the exact-size
+  // cache, so while a new tile bakes we fall back to the last tile that DID
+  // finish baking (scaled via CSS in the meantime) instead of blanking the
+  // band out — that blank flash on every tick is what made resizing look choppy.
+  const duotoneCache = new Map();
+  const duotoneLastGood = new Map(); // key: color|src -> most recently baked tile, any size
+  const duotonePending = new Set();
+  function getDuotoneTile(src, color, dw, dh){
+    const key = color + '|' + dw + 'x' + dh + '|' + src;
+    const lastGoodKey = color + '|' + src;
+    if(duotoneCache.has(key)) return duotoneCache.get(key);
+    if(!duotonePending.has(key)){
+      duotonePending.add(key);
+      toDuotoneDataURL(src, color, dw, dh)
+        .then(url=>{
+          if(duotoneCache.size > 60) duotoneCache.clear(); // dragging the color picker/slider can generate many intermediate keys
+          duotoneCache.set(key, url);
+          duotoneLastGood.set(lastGoodKey, url);
+          renderTimeline();
+        })
+        .finally(()=> duotonePending.delete(key));
+    }
+    return duotoneLastGood.get(lastGoodKey) || null;
+  }
+
+  // if an event's photo doesn't have a grayscale version cached yet at its
+  // current display size (e.g. it came from sample data, the size slider
+  // changed, or conversion hadn't finished before the event was added),
+  // compute it lazily and re-render once ready — this self-heals instead
+  // of silently falling back to the color photo or a wrong crop
+  const grayCache = new Map();
+  const grayLastGood = new Map(); // key: ev.image -> most recently baked version, any size
+  const grayPending = new Set();
+  function ensureGray(ev){
+    if(!ev.image) return null;
+    const size = ev.imgSize || 100;
+    const key = ev.image + '|' + size;
+    if(grayCache.has(key)) return grayCache.get(key);
+    if(!grayPending.has(key)){
+      grayPending.add(key);
+      toGrayscaleDataURL(ev.image, size, size).then(gray=>{
+        if(grayCache.size > 60) grayCache.clear();
+        grayCache.set(key, gray);
+        grayLastGood.set(ev.image, gray);
+        renderTimeline();
+      }).finally(()=> grayPending.delete(key));
+    }
+    // fall back to the last baked size (CSS will scale it) instead of
+    // dropping the image entirely while the new size bakes — avoids the
+    // photo flickering out on every tick of the size slider
+    return grayLastGood.get(ev.image) || null;
+  }
+  // color mode also needs its crop pre-baked (rather than left to CSS
+  // object-fit), for the exact same reason as the grayscale/duotone cases
+  const colorCache = new Map();
+  const colorLastGood = new Map(); // key: ev.image -> most recently baked version, any size
+  const colorPending = new Set();
+  function ensureColor(ev){
+    if(!ev.image) return null;
+    const size = ev.imgSize || 100;
+    const key = ev.image + '|' + size;
+    if(colorCache.has(key)) return colorCache.get(key);
+    if(!colorPending.has(key)){
+      colorPending.add(key);
+      processImage(ev.image, size, size, ()=>{}).catch(()=>ev.image).then(url=>{
+        if(colorCache.size > 60) colorCache.clear();
+        colorCache.set(key, url);
+        colorLastGood.set(ev.image, url);
+        renderTimeline();
+      }).finally(()=> colorPending.delete(key));
+    }
+    return colorLastGood.get(ev.image) || null;
+  }
+
+  function fitTitleFont(el){
+    const len = el.textContent.length;
+    let fs = 28;
+    if(len > 8) fs = Math.max(13, 28 - (len - 8) * 0.55);
+    el.style.fontSize = fs + 'px';
+  }
+  function syncHeader(){
+    capTitle1.textContent = inpTitle1.value;
+    capTitle2.textContent = inpTitle2.value;
+    fitTitleFont(capTitle1);
+    fitTitleFont(capTitle2);
+    saveState();
+  }
+  [inpTitle1, inpTitle2].forEach(i=> i.addEventListener('input', syncHeader));
+
+  // dragging a slider/color-picker fires far more 'input' events than the
+  // screen can repaint; coalescing them to one renderTimeline() per frame
+  // avoids piling up redundant re-bakes that only make the last one matter
+  let renderTimelineRAF = null;
+  function renderTimelineThrottled(){
+    if(renderTimelineRAF) return;
+    renderTimelineRAF = requestAnimationFrame(()=>{ renderTimelineRAF = null; renderTimeline(); });
+  }
+
+  inpBandColor.addEventListener('input', ()=>{
+    document.documentElement.style.setProperty('--band', inpBandColor.value);
+    renderTimelineThrottled(); // re-bake band tiles with the new tint color
+  });
+  chkMono.addEventListener('change', ()=>{
+    captureArea.classList.toggle('mono', chkMono.checked);
+    renderTimeline();
+  });
+  inpSuffix.addEventListener('input', renderTimeline);
+
+  // ---- mode toggle ----
+  function setMode(m){
+    mode = m;
+    captureArea.classList.toggle('mode-band', m==='band');
+    captureArea.classList.toggle('mode-line', m==='line');
+    captureArea.classList.toggle('mode-vertical', m==='vertical');
+    btnModeBand.classList.toggle('btn-active', m==='band');
+    btnModeLine.classList.toggle('btn-active', m==='line');
+    btnModeVertical.classList.toggle('btn-active', m==='vertical');
+    renderTimeline();
+    updatePreview();
+  }
+  btnModeBand.addEventListener('click', ()=>setMode('band'));
+  btnModeLine.addEventListener('click', ()=>setMode('line'));
+  btnModeVertical.addEventListener('click', ()=>setMode('vertical'));
+
+  // ---- band images ----
+  inpBandImages.addEventListener('change', (e)=>{
+    const files = Array.from(e.target.files || []);
+    let remaining = files.length;
+    if(remaining===0) return;
+    files.forEach(f=>{
+      readFile(f, (dataUrl)=>{
+        bandImages.push(dataUrl);
+        remaining--;
+        if(remaining===0){ renderBandThumbs(); renderTimeline(); }
+      });
+    });
+    inpBandImages.value = '';
+  });
+  btnClearBandImgs.addEventListener('click', ()=>{ bandImages=[]; renderBandThumbs(); renderTimeline(); });
+  function renderBandThumbs(){
+    bandThumbs.innerHTML='';
+    bandImages.forEach((src, idx)=>{
+      const t=document.createElement('div');
+      t.className='thumb';
+      t.innerHTML = `<img src="${src}"><div class="x">&times;</div>`;
+      t.querySelector('.x').addEventListener('click', ()=>{
+        bandImages.splice(idx,1); renderBandThumbs(); renderTimeline();
+      });
+      bandThumbs.appendChild(t);
+    });
+  }
+  inpBandImgSize.addEventListener('input', ()=>{
+    bandImgSize = parseInt(inpBandImgSize.value,10);
+    bandImgSizeVal.textContent = bandImgSize+'px';
+    renderTimelineThrottled();
+  });
+
+  // ---- event image ----
+  inpEventImage.addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    readFile(file, (dataUrl)=>{
+      pendingEventImage=dataUrl;
+      renderEventImgPreview();
+    });
+    inpEventImage.value='';
+  });
+  // shows a live mini version of the card as it'll actually look on the
+  // timeline (title/desc font size, box width, photo size, current mode's
+  // border style) *before* the event is added, so sliders don't feel blind
+  function updatePreview(){
+    previewCard.classList.toggle('no-image', !pendingEventImage);
+    previewCard.classList.toggle('line-style', mode==='line' || mode==='vertical');
+
+    if(pendingEventImage){
+      previewThumb.src = pendingEventImage;
+      previewThumb.style.display = 'block';
+      previewThumb.style.width = pendingImgSize+'px';
+      previewThumb.style.height = pendingImgSize+'px';
+    } else {
+      previewThumb.style.display = 'none';
+    }
+
+    const titleText = inpTitle.value.trim() || '제목이 여기 표시돼요';
+    previewTitle.textContent = titleText;
+    previewTitle.style.fontSize = pendingTextSize+'px';
+
+    const descText = inpDesc.value.trim();
+    if(descText){
+      previewDesc.textContent = descText;
+      previewDesc.style.display = 'block';
+      previewDesc.style.fontSize = (pendingTextSize * (11.5/14.5))+'px';
+    } else {
+      previewDesc.style.display = 'none';
+    }
+
+    // matches cardMetrics() in renderTimeline: an image-card's text column
+    // is exactly the box size, but a no-image card's whole box (and so its
+    // block-level text wrap) is box size + BOX_PAD wider. Line mode also
+    // adds a border + 11px padding to the card itself (border-box), which
+    // eats into the space left for the text either way.
+    const LINE_PAD_BORDER = 2*11 + 2*1.5;
+    let wrapWidth = pendingEventImage ? pendingBoxSize : (pendingBoxSize + BOX_PAD);
+    if(mode==='line' || mode==='vertical') wrapWidth -= LINE_PAD_BORDER;
+    previewCard.querySelector('.prev-textwrap').style.width = wrapWidth+'px';
+  }
+
+  function renderEventImgPreview(){
+    eventImgPreview.innerHTML='';
+    updatePreview();
+    if(!pendingEventImage) return;
+    const t=document.createElement('div');
+    t.className='thumb';
+    // reflect the actual chosen size (slider overrides the fixed 64px
+    // default) so this preview shows how big the photo will really be
+    t.style.width = pendingImgSize+'px';
+    t.style.height = pendingImgSize+'px';
+    t.innerHTML = `<img src="${pendingEventImage}"><div class="x">&times;</div>`;
+    t.querySelector('.x').addEventListener('click', ()=>{ pendingEventImage=null; renderEventImgPreview(); });
+    eventImgPreview.appendChild(t);
+  }
+  inpImgSize.addEventListener('input', ()=>{
+    pendingImgSize = parseInt(inpImgSize.value,10);
+    imgSizeVal.textContent = pendingImgSize+'px';
+    renderEventImgPreview();
+    // also live-update the card already on the timeline while editing it,
+    // instead of only applying the new size after clicking 수정 완료
+    if(editingId){
+      const ev = events.find(e=>e.id===editingId);
+      if(ev){ ev.imgSize = pendingImgSize; renderTimelineThrottled(); }
+    }
+  });
+  inpTextSize.addEventListener('input', ()=>{
+    pendingTextSize = parseInt(inpTextSize.value,10);
+    textSizeVal.textContent = pendingTextSize+'px';
+    updatePreview();
+    if(editingId){
+      const ev = events.find(e=>e.id===editingId);
+      if(ev){ ev.textSize = pendingTextSize; renderTimelineThrottled(); }
+    }
+  });
+  inpBoxSize.addEventListener('input', ()=>{
+    pendingBoxSize = parseInt(inpBoxSize.value,10);
+    boxSizeVal.textContent = pendingBoxSize+'px';
+    updatePreview();
+    if(editingId){
+      const ev = events.find(e=>e.id===editingId);
+      if(ev){ ev.boxSize = pendingBoxSize; renderTimelineThrottled(); }
+    }
+  });
+  inpTitle.addEventListener('input', updatePreview);
+  inpDesc.addEventListener('input', updatePreview);
+
+  // ---- events CRUD ----
+  function resetForm(){
+    inpYear.value=''; inpTitle.value=''; inpDesc.value='';
+    inpYear.style.borderColor='var(--line)'; inpTitle.style.borderColor='var(--line)';
+    pendingEventImage=null; pendingImgSize=100;
+    inpImgSize.value=100; imgSizeVal.textContent='100px';
+    pendingTextSize=17; inpTextSize.value=17; textSizeVal.textContent='17px';
+    pendingBoxSize=170; inpBoxSize.value=170; boxSizeVal.textContent='170px';
+    renderEventImgPreview();
+    updatePreview();
+    autoGrow(inpDesc);
+  }
+
+  function addEvent(){
+    const yearVal = inpYear.value;
+    const titleVal = inpTitle.value.trim();
+    if(yearVal === '' || !titleVal){
+      inpYear.style.borderColor = yearVal!=='' ? 'var(--line)':'var(--danger)';
+      inpTitle.style.borderColor = titleVal? 'var(--line)':'var(--danger)';
+      return;
+    }
+    if(editingId){
+      const ev = events.find(e=>e.id===editingId);
+      if(ev){
+        ev.year = parseFloat(yearVal);
+        ev.title = titleVal;
+        ev.desc = inpDesc.value.trim();
+        ev.image = pendingEventImage;
+        ev.imgSize = pendingImgSize;
+        ev.textSize = pendingTextSize;
+        ev.boxSize = pendingBoxSize;
+      }
+      editingId = null;
+      editingOriginalImgSize = null;
+      editingOriginalTextSize = null;
+      editingOriginalBoxSize = null;
+      btnAdd.textContent = '+ 타임라인에 추가';
+      eventFormTitle.textContent = '이벤트 추가';
+      btnCancelEdit.style.display = 'none';
+    } else {
+      events.push({
+        id: uid(), year: parseFloat(yearVal), title: titleVal,
+        desc: inpDesc.value.trim(), image: pendingEventImage, imgSize: pendingImgSize,
+        textSize: pendingTextSize, boxSize: pendingBoxSize
+      });
+    }
+    resetForm();
+    render();
+  }
+
+  function startEdit(ev){
+    editingId = ev.id;
+    editingOriginalImgSize = ev.imgSize || 100;
+    editingOriginalTextSize = ev.textSize || 17;
+    editingOriginalBoxSize = ev.boxSize || 170;
+    inpYear.value = ev.year;
+    inpTitle.value = ev.title;
+    inpDesc.value = ev.desc || '';
+    autoGrow(inpDesc);
+    pendingEventImage = ev.image || null;
+    pendingImgSize = ev.imgSize || 100;
+    inpImgSize.value = pendingImgSize;
+    imgSizeVal.textContent = pendingImgSize+'px';
+    pendingTextSize = ev.textSize || 17;
+    inpTextSize.value = pendingTextSize;
+    textSizeVal.textContent = pendingTextSize+'px';
+    pendingBoxSize = ev.boxSize || 170;
+    inpBoxSize.value = pendingBoxSize;
+    boxSizeVal.textContent = pendingBoxSize+'px';
+    renderEventImgPreview();
+    updatePreview();
+    btnAdd.textContent = '수정 완료';
+    eventFormTitle.textContent = '이벤트 수정 중';
+    btnCancelEdit.style.display = 'block';
+    renderList();
+    inpYear.closest('.panel').scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+  function cancelEdit(){
+    // undo the live size preview if a slider was dragged but never confirmed
+    if(editingId){
+      const ev = events.find(e=>e.id===editingId);
+      if(ev){
+        let changed = false;
+        if(editingOriginalImgSize!==null && ev.imgSize!==editingOriginalImgSize){ ev.imgSize = editingOriginalImgSize; changed = true; }
+        if(editingOriginalTextSize!==null && ev.textSize!==editingOriginalTextSize){ ev.textSize = editingOriginalTextSize; changed = true; }
+        if(editingOriginalBoxSize!==null && ev.boxSize!==editingOriginalBoxSize){ ev.boxSize = editingOriginalBoxSize; changed = true; }
+        if(changed) renderTimeline();
+      }
+    }
+    editingId = null;
+    editingOriginalImgSize = null;
+    editingOriginalTextSize = null;
+    editingOriginalBoxSize = null;
+    btnAdd.textContent = '+ 타임라인에 추가';
+    eventFormTitle.textContent = '이벤트 추가';
+    btnCancelEdit.style.display = 'none';
+    resetForm();
+    renderList();
+  }
+  btnCancelEdit.addEventListener('click', cancelEdit);
+
+  function removeEvent(id){
+    events = events.filter(e=>e.id!==id);
+    if(editingId===id) cancelEdit();
+    render();
+  }
+  function duplicateEvent(id){
+    const ev = events.find(e=>e.id===id);
+    if(!ev) return;
+    const copy = Object.assign({}, ev, { id: uid(), title: ev.title + ' (복사)' });
+    events.push(copy);
+    render();
+    startEdit(copy);
+  }
+  function resetAll(){
+    if(!confirm('제목, 디자인 설정, 이벤트를 모두 기본값으로 초기화할까요? 되돌릴 수 없어요.')) return;
+    events = [];
+    bandImages = [];
+    bandImgSize = 190;
+    maxTrackWidth = 0;
+    pendingEventImage = null;
+    pendingImgSize = 100;
+    editingId = null;
+    editingOriginalImgSize = null;
+    mode = 'band';
+
+    inpTitle1.value = '타임라인';
+    inpTitle2.value = '연대기';
+    inpBandColor.value = '#E63946';
+    document.documentElement.style.setProperty('--band', '#E63946');
+    inpSuffix.value = '';
+    inpFont.value = 'blackhan';
+    document.documentElement.style.setProperty('--displayFont', FONT_MAP.blackhan.family);
+    document.documentElement.style.setProperty('--displayWeight', FONT_MAP.blackhan.weight);
+    chkMono.checked = true;
+    captureArea.classList.add('mono');
+    inpBandImgSize.value = 190;
+    bandImgSizeVal.textContent = '190px';
+    renderBandThumbs();
+    captureArea.classList.add('mode-band');
+    captureArea.classList.remove('mode-line');
+    captureArea.classList.remove('mode-vertical');
+    btnModeBand.classList.add('btn-active');
+    btnModeLine.classList.remove('btn-active');
+    btnModeVertical.classList.remove('btn-active');
+    btnAdd.textContent = '+ 타임라인에 추가';
+    eventFormTitle.textContent = '이벤트 추가';
+    btnCancelEdit.style.display = 'none';
+    resetForm();
+
+    try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+    syncHeader();
+    render();
+  }
+
+  function renderList(){
+    eventList.innerHTML='';
+    const sorted=[...events].sort((a,b)=>a.year-b.year);
+    emptyHint.style.display = events.length? 'none':'block';
+    eventList.style.display = events.length? 'flex':'none';
+    sorted.forEach(ev=>{
+      const row=document.createElement('div');
+      row.className='event-row' + (ev.id===editingId? ' editing':'');
+      row.innerHTML = `
+        ${ev.image? `<div class="thumb"><img src="${ev.image}"></div>` : `<div class="dot"></div>`}
+        <div class="meta">
+          <div class="d">${escapeHtml(fmtYear(ev.year))}</div>
+          <div class="t">${escapeHtml(ev.title)}</div>
+        </div>
+        <button class="dup" title="복사">⧉</button>
+        <button class="del" title="삭제">&times;</button>
+      `;
+      row.querySelector('.dup').addEventListener('click', (e)=>{ e.stopPropagation(); duplicateEvent(ev.id); });
+      row.querySelector('.del').addEventListener('click', (e)=>{ e.stopPropagation(); removeEvent(ev.id); });
+      row.addEventListener('click', ()=> startEdit(ev));
+      eventList.appendChild(row);
+    });
+  }
+
+  function renderTimeline(){
+    trackOuter.querySelectorAll('.num, .stem, .card, .node').forEach(n=>n.remove());
+    bandCollage.innerHTML = '';
+    trackOuter.style.height = ''; // clear any leftover explicit height from vertical mode; only vertical mode sets one, band/line size via padding instead
+
+    // mode-dependent geometry
+    const bandVisualHeight = mode==='band' ? 168 : 3;
+    const bandHalf = bandVisualHeight/2;
+    const gap = mode==='band' ? 30 : 34;
+    if(mode!=='vertical'){
+      band.style.height = bandVisualHeight+'px';
+      band.style.top = `calc(50% - ${bandVisualHeight/2}px)`;
+    } else {
+      // clear any leftover inline top/height from band/line mode — vertical
+      // mode's CSS (top:0; bottom:0; height:auto !important) handles this,
+      // but only if no inline value is left over to take precedence
+      band.style.height = '';
+      band.style.top = '';
+    }
+    // the duotone overlay only makes sense when there are photos to tint —
+    // otherwise it was quietly darkening the pure accent color, making the
+    // band look like a different color than the line style
+    // NOTE: the duotone photo effect used to be a CSS grayscale filter +
+    // a mix-blend-mode overlay, but html2canvas can't render either of
+    // those, which is why saved images looked broken. The tint is now
+    // baked directly into the tile pixels (see toDuotoneDataURL), so no
+    // live CSS overlay is needed at all.
+
+    if(events.length===0){
+      if(mode==='vertical'){
+        trackOuter.style.width = '';
+        trackOuter.style.minWidth = '';
+        trackOuter.style.height = '500px';
+        trackOuter.style.paddingTop = '';
+        trackOuter.style.paddingBottom = '';
+      } else {
+        trackOuter.style.height = '';
+        trackOuter.style.minWidth = Math.max(1000, scrollerEl.clientWidth || 0, maxTrackWidth)+'px';
+        trackOuter.style.width = '';
+        trackOuter.style.paddingTop = '210px';
+        trackOuter.style.paddingBottom = '190px';
+      }
+      scaleReadout.textContent = '';
+      saveState();
+      return;
+    }
+
+    const sorted=[...events].sort((a,b)=>a.year-b.year);
+    let minY=Math.min(...sorted.map(e=>e.year));
+    let maxY=Math.max(...sorted.map(e=>e.year));
+    if(minY===maxY){ minY-=10; maxY+=10; }
+    const range = maxY-minY;
+
+    // card/text/spacing size is fixed regardless of event count — adding
+    // events makes the timeline longer instead of shrinking everything to
+    // stay compact, and removing events never needs to "grow" things back
+    // since the size was never tied to the count in the first place
+    const densityScale = DENSITY_SCALE;
+
+    const numFont = (mode==='band' ? 46 : 14) * densityScale;
+    const titleFont = 14.5 * densityScale;
+    const descFont = 11.5 * densityScale;
+    const TEXT_W = TEXT_W_BASE; // width reserved for the text column next to an image
+    const DESC_RATIO = descFont / titleFont;
+
+    // per-event text size (텍스트 크기) / box size (박스 크기) overrides apply
+    // in both band and line mode — both modes render the same title/desc
+    // text block, so there's no reason to limit these controls to line mode
+    function textMetricsFor(ev){
+      if(ev.textSize || ev.boxSize){
+        const tFont = ev.textSize || titleFont;
+        return { titleFont: tFont, descFont: tFont * DESC_RATIO, textW: ev.boxSize || TEXT_W };
+      }
+      return { titleFont, descFont, textW: TEXT_W };
+    }
+
+    // each event's card width/height depends on whether it has a photo —
+    // an image sits *beside* the text (not stacked above it) so the card
+    // stays short and never has to grow tall enough to get clipped.
+    function cardMetrics(ev){
+      const tm = textMetricsFor(ev);
+      if(ev.image){
+        const s = ev.imgSize || 100;
+        return { width: s + 10 + tm.textW, height: Math.max(s, 64*densityScale), titleFont: tm.titleFont, descFont: tm.descFont };
+      }
+      return { width: tm.textW + BOX_PAD, height: 60*densityScale, titleFont: tm.titleFont, descFont: tm.descFont };
+    }
+    const metrics = sorted.map(cardMetrics);
+    const maxCardWidth = Math.max(190*densityScale, ...metrics.map(m=>m.width));
+    const maxCardHeight = Math.max(60*densityScale, ...metrics.map(m=>m.height));
+
+    // ---- VERTICAL MODE: entirely separate layout ----
+    // cards alternate left/right of a centerline instead of sitting
+    // above/below a horizontal one, and the timeline grows *down* the
+    // page (by year) instead of across it — so this branches off with
+    // its own positioning math and returns early rather than reusing any
+    // of the horizontal x-axis code below.
+    if(mode==='vertical'){
+      // trackOuter's CSS gives it 44px of left/right padding for the
+      // horizontal modes' margins — for vertical mode that padding was
+      // never cleared, so absolutely-positioned cards were measured from
+      // the wrong edge and could poke past the actually-visible area and
+      // get clipped by captureArea's overflow:hidden. Zero it out here so
+      // our own CENTER_GAP/sidePad math is the only thing controlling
+      // spacing from the edges.
+      trackOuter.style.paddingLeft = '0';
+      trackOuter.style.paddingRight = '0';
+
+      const availW = Math.max(320, scrollerEl.clientWidth || 0);
+      const centerX = availW/2;
+      const CENTER_GAP = 26; // gap between the centerline and the nearest card edge
+      const sidePad = 16; // keep a card's outer edge off the container edge
+      const cardMaxWidth = Math.max(160, Math.floor(availW/2) - CENTER_GAP - sidePad);
+
+      // display cards a bit smaller than the slider sizes by default —
+      // gives every card headroom before it ever needs to be clamped to
+      // cardMaxWidth, so text/photos don't render right up against (or
+      // past) the box edge
+      const V_SCALE = 0.82;
+
+      const MARGIN_V = Math.max(16, maxCardHeight/2 + 4);
+      const TOP_GAP_V = 22; // small breathing room between the title and where the line/first event starts
+      const BOTTOM_GAP_V = 32; // breathing room after the last event, measured from its real rendered bottom
+      const spaceFor = h => h/2 + 14; // half the card height is enough: only same-side cards (2 steps apart) need to clear each other
+      let MINGAP_V = spaceFor(maxCardHeight);
+      let MAXGAP_V = MINGAP_V * 2.5;
+      const isSingle = sorted.length === 1;
+      // a single event doesn't need the full spread-friendly canvas height —
+      // give it a small fixed buffer instead so "centered" reads as a nice
+      // gentle float rather than the old huge-gap version
+      const baseHeight = isSingle
+        ? MARGIN_V*2 + 80
+        : Math.max(140, MARGIN_V*2 + (sorted.length-1)*MINGAP_V);
+      const baseUsableV = baseHeight - MARGIN_V*2;
+
+      const allSameYear = sorted.every(ev => ev.year === sorted[0].year);
+      const rawY = sorted.map(ev=>{
+        const pct = isSingle ? 0.5 : (allSameYear ? 0 : (ev.year-minY)/range);
+        return TOP_GAP_V + MARGIN_V + pct*baseUsableV;
+      });
+      const computeYs = (mingap, maxgap) => {
+        const out = rawY.slice();
+        for(let i=1;i<out.length;i++){
+          const desiredGap = rawY[i] - rawY[i-1];
+          out[i] = out[i-1] + Math.max(mingap, Math.min(maxgap, desiredGap));
+        }
+        return out;
+      };
+      let ys = computeYs(MINGAP_V, MAXGAP_V);
+      let height = Math.max(200, ys[ys.length-1] + MARGIN_V);
+
+      trackOuter.style.width = '';
+      trackOuter.style.minWidth = '';
+      trackOuter.style.paddingTop = '0';
+      trackOuter.style.paddingBottom = '0';
+      trackOuter.style.height = height+'px';
+      band.style.top = TOP_GAP_V+'px'; // line starts a bit below the title instead of flush against it
+
+      sorted.forEach((ev,i)=>{
+        const leftSide = i%2===0;
+        const m = metrics[i];
+        const cardWidth = Math.min(m.width * V_SCALE, cardMaxWidth);
+
+        const node = document.createElement('div');
+        node.className='node';
+        node.style.left = centerX+'px';
+        node.style.top = ys[i]+'px';
+        trackOuter.appendChild(node);
+
+        const stem=document.createElement('div');
+        stem.className='stem';
+        stem.style.top = ys[i]+'px';
+        stem.style.height = '1px';
+        stem.style.width = CENTER_GAP+'px';
+        stem.style.left = (leftSide ? centerX-CENTER_GAP : centerX)+'px';
+        trackOuter.appendChild(stem);
+
+        const card=document.createElement('div');
+        card.className='card' + (ev.image? '' : ' no-image');
+        card.style.top = ys[i]+'px';
+        card.style.transform = 'translateY(-50%)';
+        card.style.width = cardWidth+'px';
+        card.style.left = (leftSide ? centerX-CENTER_GAP-cardWidth : centerX+CENTER_GAP)+'px';
+        const size = Math.round((ev.imgSize || 100) * V_SCALE);
+        const vTitleFont = m.titleFont * V_SCALE;
+        const vDescFont = m.descFont * V_SCALE;
+        const displaySrc = chkMono.checked ? ensureGray(ev) : ensureColor(ev);
+        const imgTag = (ev.image && displaySrc)
+          ? `<img class="thumb-img" style="width:${size}px;height:${size}px" src="${displaySrc}" onerror="this.remove()">`
+          : '';
+        card.innerHTML = `
+          ${imgTag}
+          <div class="textwrap">
+            <div class="v-year">${escapeHtml(fmtYear(ev.year))}${escapeHtml(suffix())}</div>
+            <div class="title" style="font-size:${vTitleFont}px">${escapeHtml(ev.title)}</div>
+            ${ev.desc? `<div class="desc" style="font-size:${vDescFont}px">${escapeHtml(ev.desc)}</div>`:''}
+          </div>
+        `;
+        trackOuter.appendChild(card);
+      });
+
+      // long wrapped titles/descriptions can make a card taller than the
+      // estimate — measure the real rendered heights and re-space
+      // everything if needed so same-side cards never overlap
+      const cardEls = Array.from(trackOuter.querySelectorAll('.card'));
+      const realMaxH = Math.max(maxCardHeight, ...cardEls.map(c=>c.getBoundingClientRect().height));
+      if(realMaxH > maxCardHeight){
+        MINGAP_V = spaceFor(realMaxH);
+        MAXGAP_V = MINGAP_V * 2.5;
+        ys = computeYs(MINGAP_V, MAXGAP_V);
+        height = Math.max(200, ys[ys.length-1] + MARGIN_V);
+        trackOuter.style.height = height+'px';
+        const nodeEls = Array.from(trackOuter.querySelectorAll('.node'));
+        const stemEls = Array.from(trackOuter.querySelectorAll('.stem'));
+        for(let i=0;i<ys.length;i++){
+          nodeEls[i].style.top = ys[i]+'px';
+          stemEls[i].style.top = ys[i]+'px';
+          cardEls[i].style.top = ys[i]+'px';
+        }
+      }
+
+      // final safety net: measure where each card's real bottom edge landed
+      // (after any re-spacing above) and make sure the track is tall enough
+      // to contain it plus a bit of breathing room — estimates can still be
+      // off in edge cases, but this guarantees nothing gets clipped by
+      // captureArea's overflow:hidden
+      const trackTopNow = trackOuter.getBoundingClientRect().top;
+      const realBottoms = Array.from(trackOuter.querySelectorAll('.card')).map(c => c.getBoundingClientRect().bottom - trackTopNow);
+      const neededHeight = Math.max(...realBottoms) + BOTTOM_GAP_V;
+      if(neededHeight > height){
+        height = neededHeight;
+        trackOuter.style.height = height+'px';
+      }
+
+      scaleReadout.innerHTML = `이벤트 <b>${events.length}</b>개 · 범위 <b>${Math.round(range)}</b>${suffix()}`;
+      saveState();
+      return;
+    }
+
+    // buffers are derived from the actual content, so wider/taller cards
+    // (bigger photos) automatically get more room instead of clipping
+    const MARGIN = Math.max(120, maxCardWidth/2 + 20);
+    const vPad = bandHalf + gap + maxCardHeight + 34;
+    trackOuter.style.paddingTop = vPad+'px';
+    trackOuter.style.paddingBottom = vPad+'px';
+
+    const MINGAP = (mode==='band' ? 100 : 110) * densityScale; // starting guess — corrected below using real measured widths
+
+    // fill the whole visible canvas by default (instead of shrinking to a
+    // tight fit around just a couple of events) — only grow past that once
+    // there are enough events to actually need more horizontal room
+    const fillWidth = Math.max(640, scrollerEl.clientWidth || 0);
+
+    // start from a proportional (linear-by-year) baseline width...
+    const baseWidth = Math.max(fillWidth, Math.min(3000, MARGIN*2 + (sorted.length-1)*190*densityScale));
+    const baseUsable = baseWidth - MARGIN*2;
+
+    // ...compute each event's proportional x, then clamp each gap between
+    // a MIN (so close-together years never overlap) and a MAX (so a huge
+    // year gap between two events doesn't stretch the whole timeline out
+    // into mostly-empty space). Everything in between stays proportional.
+    const MAXGAP = MINGAP * 2.5;
+    const rawX = sorted.map(ev=>{
+      const pct = range===0 ? 0.5 : (ev.year-minY)/range;
+      return MARGIN + pct*baseUsable;
+    });
+    const xs = rawX.slice();
+    for(let i=1;i<xs.length;i++){
+      const desiredGap = rawX[i] - rawX[i-1];
+      const clampedGap = Math.max(MINGAP, Math.min(MAXGAP, desiredGap));
+      xs[i] = xs[i-1] + clampedGap;
+    }
+    // the track only ever grows: deleting events back down to a narrower
+    // natural width must not shrink the canvas that was already reached
+    let width = Math.max(fillWidth, xs[xs.length-1] + MARGIN);
+    width = Math.max(width, maxTrackWidth);
+    maxTrackWidth = width;
+    trackOuter.style.minWidth = width+'px';
+    trackOuter.style.width = width+'px';
+
+    // band collage fill (band mode only, but harmless to build either way)
+    function fillBandCollage(forWidth){
+      bandCollage.innerHTML = '';
+      if(!(bandImages.length && mode==='band')) return;
+      const bandColor = inpBandColor.value;
+      const tileSize = Math.min(bandImgSize, bandVisualHeight);
+      // use pre-baked duotone versions (already cropped to bandImgSize x
+      // tileSize); if any image hasn't finished baking yet, draw nothing
+      // this pass (band shows flat color) — getDuotoneTile schedules a
+      // re-render the moment baking completes, so tiles never appear
+      // partially covered or with the wrong crop
+      const bakedList = bandImages.map(src => getDuotoneTile(src, bandColor, bandImgSize, tileSize));
+      if(bakedList.some(b => !b)) return;
+      const tilesNeeded = Math.ceil(forWidth/bandImgSize)+2;
+      const topOffset = (bandVisualHeight - tileSize) / 2;
+      for(let i=0;i<tilesNeeded;i++){
+        const img=document.createElement('img');
+        img.src = bakedList[i % bakedList.length];
+        img.style.width = bandImgSize+'px';
+        img.style.height = tileSize+'px';
+        img.style.left = (i * bandImgSize) + 'px';
+        img.style.top = topOffset + 'px';
+        img.onerror = function(){ this.style.visibility='hidden'; };
+        bandCollage.appendChild(img);
+      }
+    }
+    fillBandCollage(width);
+
+    sorted.forEach((ev,i)=>{
+      const xPx = xs[i];
+      const above = i%2===0;
+      const m = metrics[i];
+
+      const node = document.createElement('div');
+      node.className='node';
+      node.style.left = xPx+'px';
+      trackOuter.appendChild(node);
+
+      const num=document.createElement('div');
+      num.className='num';
+      num.style.fontSize = numFont+'px';
+      if(mode==='line'){
+        // keep the label on the same side as its card (so it never
+        // crosses the horizontal line), but shift it sideways off the
+        // dot's x-position so it doesn't sit on top of the thin stem
+        // line connecting the dot to the card
+        num.style.left = (xPx+18)+'px';
+        num.style.top = above ? 'calc(50% - 24px)' : 'calc(50% + 24px)';
+        num.style.transform = 'translate(0,-50%)';
+      } else {
+        num.style.left = xPx+'px';
+      }
+      num.textContent = fmtYear(ev.year);
+      trackOuter.appendChild(num);
+
+      const stem=document.createElement('div');
+      stem.className='stem';
+      stem.style.left = xPx+'px';
+      if(above){
+        stem.style.top = `calc(50% - ${bandHalf+gap}px)`;
+        stem.style.height = gap+'px';
+      } else {
+        stem.style.top = `calc(50% + ${bandHalf}px)`;
+        stem.style.height = gap+'px';
+      }
+      trackOuter.appendChild(stem);
+
+      const card=document.createElement('div');
+      card.className='card' + (ev.image? '' : ' no-image');
+      card.style.left = xPx+'px';
+      card.style.width = m.width+'px';
+      card.style.marginLeft = (-m.width/2)+'px';
+      if(above){ card.style.bottom = `calc(50% + ${bandHalf+gap}px)`; }
+      else { card.style.top = `calc(50% + ${bandHalf+gap}px)`; }
+      const size = ev.imgSize || 100;
+      const displaySrc = chkMono.checked ? ensureGray(ev) : ensureColor(ev);
+      const imgTag = (ev.image && displaySrc)
+        ? `<img class="thumb-img" style="width:${size}px;height:${size}px" src="${displaySrc}" onerror="this.remove()">`
+        : '';
+      card.innerHTML = `
+        ${imgTag}
+        <div class="textwrap">
+          <div class="title" style="font-size:${m.titleFont}px">${escapeHtml(ev.title)}</div>
+          ${ev.desc? `<div class="desc" style="font-size:${m.descFont}px">${escapeHtml(ev.desc)}</div>`:''}
+        </div>
+      `;
+      trackOuter.appendChild(card);
+    });
+
+    // band-mode numbers are centered text of very different lengths
+    // ("12년" vs "1968년"), so a single guessed gap is always either too
+    // loose for short labels or too tight for long ones. Measure the
+    // actual rendered width of each number and only push a pair apart
+    // exactly as much as it really needs — never more.
+    if(mode==='band'){
+      const numEls = Array.from(trackOuter.querySelectorAll('.num'));
+      const nodeEls = Array.from(trackOuter.querySelectorAll('.node'));
+      const stemEls = Array.from(trackOuter.querySelectorAll('.stem'));
+      const cardEls = Array.from(trackOuter.querySelectorAll('.card'));
+      const widths = numEls.map(el=>el.getBoundingClientRect().width);
+      const xs2 = xs.slice();
+      for(let i=1;i<xs2.length;i++){
+        const need = xs2[i-1] + widths[i-1]/2 + widths[i]/2 + 16;
+        if(xs2[i] < need) xs2[i] = need;
+      }
+      for(let i=0;i<xs2.length;i++){
+        if(Math.abs(xs2[i]-xs[i]) > 0.5){
+          numEls[i].style.left = xs2[i]+'px';
+          if(nodeEls[i]) nodeEls[i].style.left = xs2[i]+'px';
+          if(stemEls[i]) stemEls[i].style.left = xs2[i]+'px';
+          if(cardEls[i]) cardEls[i].style.left = xs2[i]+'px';
+        }
+      }
+      const lastX2 = xs2[xs2.length-1];
+      if(lastX2 > xs[xs.length-1]){
+        const newWidth = Math.max(lastX2 + MARGIN, maxTrackWidth);
+        maxTrackWidth = newWidth;
+        trackOuter.style.minWidth = newWidth+'px';
+        trackOuter.style.width = newWidth+'px';
+        fillBandCollage(newWidth);
+      }
+    }
+
+    // titles/descriptions can now be quite long and wrap onto several
+    // lines, so the earlier height estimate may be too small — measure
+    // the actual rendered cards and re-apply the vertical padding so
+    // nothing above/below ever gets clipped
+    const realMax = Math.max(60, ...Array.from(trackOuter.querySelectorAll('.card')).map(c=>c.getBoundingClientRect().height));
+    if(realMax > maxCardHeight){
+      const vPad2 = bandHalf + gap + realMax + 34;
+      trackOuter.style.paddingTop = vPad2+'px';
+      trackOuter.style.paddingBottom = vPad2+'px';
+    }
+
+    scaleReadout.innerHTML = `이벤트 <b>${events.length}</b>개 · 범위 <b>${Math.round(range)}</b>${suffix()}`;
+    saveState();
+  }
+
+  function render(){ renderList(); renderTimeline(); }
+
+  btnAdd.addEventListener('click', addEvent);
+  btnResetAll.addEventListener('click', resetAll);
+  [inpYear, inpTitle].forEach(i=>{
+    i.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addEvent(); } });
+  });
+
+  btnSave.addEventListener('click', ()=>{
+    if(events.length===0){ alert('먼저 이벤트를 추가해주세요.'); return; }
+    btnSave.textContent='저장 중...';
+
+    loadHtml2Canvas().catch(()=>{
+      btnSave.textContent='이미지로 저장';
+      alert('이미지 저장에 필요한 스크립트를 불러오지 못했어요. 인터넷 연결을 확인하거나, 이 페이지를 일반 브라우저 탭에서 열어 다시 시도해주세요.');
+      throw new Error('html2canvas unavailable');
+    }).then(()=>{
+
+    // the timeline can be wider than the visible scroll area — temporarily
+    // expand everything to its full content width so the saved image
+    // isn't cropped to whatever happened to be on screen
+    const scrollerEl = document.getElementById('scrollerEl');
+    const fullWidth = trackOuter.scrollWidth;
+    const prevCaptureWidth = captureArea.style.width;
+    const prevScrollerOverflow = scrollerEl.style.overflow;
+    const prevScrollerWidth = scrollerEl.style.width;
+    captureArea.style.width = fullWidth + 'px';
+    scrollerEl.style.overflow = 'visible';
+    scrollerEl.style.width = fullWidth + 'px';
+
+    function restore(){
+      captureArea.style.width = prevCaptureWidth;
+      scrollerEl.style.overflow = prevScrollerOverflow;
+      scrollerEl.style.width = prevScrollerWidth;
+    }
+
+    // give layout a frame to settle before html2canvas measures it
+    requestAnimationFrame(()=>{
+      try {
+        // a fixed scale (previously always 2x) either wastes quality on
+        // short timelines or, on long ones, can push the canvas past a
+        // browser's hard size cap — which silently produces a blank or
+        // truncated image instead of an error. So instead we measure the
+        // actual content size and pick the highest scale that stays under
+        // known browser limits: mobile Safari caps canvas area at ~16.7M px
+        // (and is unreliable even under that), desktop browsers allow much
+        // more (Chrome ~268M, Firefox ~472M) but we stay well under those
+        // too for headroom on lower-memory devices.
+        const rect = captureArea.getBoundingClientRect();
+        const contentW = Math.max(1, rect.width);
+        const contentH = Math.max(1, rect.height);
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        const MAX_DIM = isMobile ? 8000 : 14000;
+        const MAX_PIXELS = isMobile ? 16000000 : 60000000;
+        let scale = Math.min(
+          3, // sharper default than before (was always 2x)
+          MAX_DIM / contentW,
+          MAX_DIM / contentH,
+          Math.sqrt(MAX_PIXELS / (contentW * contentH))
+        );
+        scale = Math.max(0.1, scale);
+
+        html2canvas(captureArea, {
+          backgroundColor:'#FFFFFF', scale, useCORS:true,
+          scrollX: 0, scrollY: -window.scrollY,
+          windowWidth: document.documentElement.scrollWidth,
+          windowHeight: document.documentElement.scrollHeight
+        }).then(canvas=>{
+          restore();
+          const link=document.createElement('a');
+          link.download='timeline.png';
+          link.href=canvas.toDataURL('image/png');
+          link.click();
+          btnSave.textContent='이미지로 저장';
+          // scale being clamped this low means the timeline is long/wide
+          // enough that we had to trade resolution for a working export —
+          // worth telling the person rather than leaving them to wonder
+          // why it looks softer than expected
+          if(scale < 1.5){
+            setTimeout(()=> alert('타임라인이 많이 길어서 이미지 해상도를 자동으로 낮췄어요 (그래야 저장이 실패하지 않아요). 더 선명하게 하려면 이벤트 수를 줄이거나 나눠서 저장해보세요.'), 50);
+          }
+        }).catch(err=>{
+          restore();
+          console.error(err);
+          alert('이미지 저장 중 오류가 발생했습니다.');
+          btnSave.textContent='이미지로 저장';
+        });
+      } catch(err){
+        restore();
+        console.error(err);
+        alert('이미지 저장 중 오류가 발생했습니다.');
+        btnSave.textContent='이미지로 저장';
+      }
+    });
+
+    }).catch(err=>{ console.error(err); });
+  });
+
+  loadState();
+  syncHeader();
+  render();
+  updatePreview();
+})();
+</script>
+</body>
+</html>
